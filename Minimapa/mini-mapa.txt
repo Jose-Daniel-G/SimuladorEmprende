@@ -1,0 +1,421 @@
+#============================================================================== 
+# ¦ Passability Mini Map 
+#------------------------------------------------------------------------------ 
+# made by squall // [mail]squall@rmxp.ch[/mail] 
+# released the 30th of May 2006 
+#============================================================================== 
+
+#============================================================================== 
+# ¦ Scene_Map 
+#------------------------------------------------------------------------------ 
+# draw the mini map 
+# @corner is the corner you want the mini map to be displayed in. 
+# 1 is upper left, 2 is upper right, 3 is bottom left and 4 is bottom right 
+#============================================================================== 
+
+class Scene_Map 
+ alias main_passminimap main 
+ alias update_passminimap update 
+ alias transfer_passminimap transfer_player 
+ #-------------------------------------------------------------------------- 
+ # ? initialize 
+ #-------------------------------------------------------------------------- 
+ def initialize 
+   @corner = 4 # 1 or 2 or 3 or 4 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? main 
+ #-------------------------------------------------------------------------- 
+ def main 
+   @mini_map = Map_Event.new(@corner) 
+   main_passminimap 
+   @mini_map.dispose 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? update 
+ #-------------------------------------------------------------------------- 
+ def update 
+   @mini_map.update 
+   if $game_system.map_interpreter.running? 
+     @mini_map.visible = false 
+   elsif not $game_system.map_interpreter.running? and @mini_map.on? 
+     @mini_map.visible = true 
+   end 
+   update_passminimap 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? transfer_player 
+ #-------------------------------------------------------------------------- 
+ def transfer_player 
+   transfer_passminimap 
+   @mini_map.dispose 
+   @mini_map = Map_Event.new(@corner) 
+ end 
+end 
+
+#============================================================================== 
+# ¦ Map_Base 
+#------------------------------------------------------------------------------ 
+#  Base class for mini maps 
+#============================================================================== 
+
+class Map_Base < Sprite 
+ #-------------------------------------------------------------------------- 
+ # ? constants and instances 
+ #-------------------------------------------------------------------------- 
+ PMP_VERSION  = 6 
+ ACTIVATED_ID = 1 # set the switch id for the minimap display (on/off) 
+ attr_reader :event 
+ #-------------------------------------------------------------------------- 
+ # ? initialize 
+ #-------------------------------------------------------------------------- 
+ def initialize(corner) 
+   super(Viewport.new(16, 16, width, height)) 
+   viewport.z = 8000 
+   @border = Sprite.new 
+   @border.x = viewport.rect.x - 6 
+   @border.y = viewport.rect.y - 6 
+   @border.z = viewport.z - 1 
+   @border.bitmap = RPG::Cache.picture("mapback") 
+   self.visible = on? 
+   self.opacity = 180 
+   case corner 
+   when 1 
+     self.x = 16 
+     self.y = 16 
+   when 2 
+     self.x = 640 - width - 16 
+     self.y = 16 
+   when 3 
+     self.x = 16 
+     self.y = 480 - height - 16 
+   when 4 
+     self.x = 640 - width - 16 
+     self.y = 480 - height - 16 
+   else 
+     self.x = 16 
+     self.y = 16 
+   end 
+   self.visible = on? 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? dispose 
+ #-------------------------------------------------------------------------- 
+ def dispose 
+   @border.dispose 
+   super 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? x= 
+ #-------------------------------------------------------------------------- 
+ def x=(x) 
+   self.viewport.rect.x = x 
+   @border.x = x - 6 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? y= 
+ #-------------------------------------------------------------------------- 
+ def y=(y) 
+   self.viewport.rect.y = y 
+   @border.y = y - 6 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? visible= 
+ #-------------------------------------------------------------------------- 
+ def visible=(bool) 
+   super 
+   self.viewport.visible = bool 
+   @border.visible = bool 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? minimap_on? 
+ #-------------------------------------------------------------------------- 
+ def on? 
+   return $game_switches[ACTIVATED_ID] 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? update 
+ #-------------------------------------------------------------------------- 
+ def update 
+   super 
+   self.visible = on? 
+    
+   if viewport.ox < display_x 
+     viewport.ox += 1 
+   elsif viewport.ox > display_x 
+     viewport.ox -= 1 
+   end 
+   if viewport.oy < display_y 
+     viewport.oy += 1 
+   elsif viewport.oy > display_y 
+     viewport.oy -= 1 
+   end 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? width 
+ #-------------------------------------------------------------------------- 
+ def width 
+   return 120 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? height 
+ #-------------------------------------------------------------------------- 
+ def height 
+   return 90 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? display_x 
+ #-------------------------------------------------------------------------- 
+ def display_x 
+   return $game_map.display_x * 3 / 64 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? display_y 
+ #-------------------------------------------------------------------------- 
+ def display_y 
+   return $game_map.display_y * 3 / 64 
+ end 
+end 
+
+#============================================================================== 
+# ¦ Map_Passability 
+#------------------------------------------------------------------------------ 
+#   draws the mini map 
+# 
+#  thanks to Fanha Giang (aka fanha99) for the autotile drawing method 
+#============================================================================== 
+
+class Map_Passability < Map_Base 
+ #-------------------------------------------------------------------------- 
+ # ? constants 
+ #-------------------------------------------------------------------------- 
+ INDEX  = 
+ [ 
+ 26, 27, 32, 33,    4, 27, 32, 33,   26,  5, 32, 33,    4,  5, 32, 33,    
+ 26, 27, 32, 11,    4, 27, 32, 11,   26,  5, 32, 11,    4,  5, 32, 11,    
+ 26, 27, 10, 33,    4, 27, 10, 33,   26,  5, 10, 33,    4,  5, 10, 33, 
+ 26, 27, 10, 11,    4, 27, 10, 11,   26,  5, 10, 11,    4,  5, 10, 11,  
+ 24, 25, 30, 31,   24,  5, 30, 31,   24, 25, 30, 11,   24,  5, 30, 11,  
+ 14, 15, 20, 21,   14, 15, 20, 11,   14, 15, 10, 21,   14, 15, 10, 11, 
+ 28, 29, 34, 35,   28, 29, 10, 35,    4, 29, 34, 35,    4, 29, 10, 35, 
+ 38, 39, 44, 45,    4, 39, 44, 45,   38,  5, 44, 45,    4,  5, 44, 45, 
+ 24, 29, 30, 35,   14, 15, 44, 45,   12, 13, 18, 19,   12, 13, 18, 11, 
+ 16, 17, 22, 23,   16, 17, 10, 23,   40, 41, 46, 47,    4, 41, 46, 47, 
+ 36, 37, 42, 43,   36,  5, 42, 43,   12, 17, 18, 23,   12, 13, 42, 43, 
+ 36, 41, 42, 47,   16, 17, 46, 47,   12, 17, 42, 47,    0,  1,  6,  7 
+ ] 
+ X = [0, 1, 0, 1] 
+ Y = [0, 0, 1, 1] 
+ #-------------------------------------------------------------------------- 
+ # ? initialize 
+ #-------------------------------------------------------------------------- 
+ def initialize(corner) 
+   super(corner) 
+   @autotile = RPG::Cache.picture("minimap_tiles") 
+   setup() 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? setup 
+ #-------------------------------------------------------------------------- 
+ def setup() 
+   @map = load_data(sprintf("Data/Map%03d.rxdata", $game_map.map_id)) 
+   tileset = $data_tilesets[@map.tileset_id] 
+   @passages = tileset.passages 
+   @priorities = tileset.priorities 
+   redefine_tiles 
+   refresh 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? pass 
+ #-------------------------------------------------------------------------- 
+ def pass(tile_id) 
+   return 15 if tile_id == nil 
+   return @passages[tile_id] != nil ? @passages[tile_id] : 15 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? passable 
+ #-------------------------------------------------------------------------- 
+ def passable(tile_id) 
+   return pass(tile_id) < 15 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? redefine_tile 
+ #-------------------------------------------------------------------------- 
+ def redefine_tiles 
+   width = @map.width 
+   height = @map.height 
+   map = RPG::Map.new(width, height) 
+   map.data = @map.data.dup 
+   for x in 0...width 
+     for y in 0...height 
+       for level in [1, 2] 
+         id = @map.data[x, y, level] 
+         if id != 0 and @priorities[id] == 0 
+           @map.data[x, y, 0] = id 
+           @passages[@map.data[x, y, 0]] = @passages[id] 
+         end 
+       end 
+     end 
+   end 
+   for x in 0...width 
+     for y in 0...height 
+       for level in [0] 
+       tile = @map.data[x, y, level] 
+       u = @map.data[x,   y-1, level] 
+       l = @map.data[x-1, y,   level] 
+       r = @map.data[x+1, y,   level] 
+       d = @map.data[x,   y+1, level] 
+       if !passable(tile) 
+         map.data[x, y] = 0 
+       else 
+         if tile == 0 
+           map.data[x, y, level] = 0 
+           next 
+         end 
+         if pass(tile) < 15 
+           if !passable(u) and !passable(l) and !passable(r) and !passable(d) 
+             map.data[x, y, level] = 0 
+           elsif !passable(u) and !passable(l) and !passable(r) and passable(d) 
+             map.data[x, y, level] = 90 
+           elsif !passable(u) and !passable(l) and !passable(d) and passable(r) 
+             map.data[x, y, level] = 91 
+           elsif !passable(u) and !passable(r) and !passable(d) and passable(l) 
+             map.data[x, y, level] = 93 
+           elsif !passable(l) and !passable(r) and !passable(d) and passable(u) 
+             map.data[x, y, level] = 92 
+           elsif !passable(u) and !passable(d) and passable(r) and passable(l) 
+             map.data[x, y, level] = 81 
+           elsif !passable(u) and !passable(r) and passable(d) and passable(l) 
+             map.data[x, y, level] = 84 
+           elsif !passable(u) and !passable(l) and passable(d) and passable(r) 
+             map.data[x, y, level] = 82 
+           elsif !passable(d) and !passable(r) and passable(l) and passable(u) 
+             map.data[x, y, level] = 86 
+           elsif !passable(d) and !passable(l) and passable(r) and passable(u) 
+             map.data[x, y, level] = 88 
+           elsif !passable(r) and !passable(l) and passable(d) and passable(u) 
+             map.data[x, y, level] = 80 
+           elsif !passable(u) and passable(d) and passable(r) and passable(l) 
+             map.data[x, y, level] = 68 
+           elsif !passable(d) and passable(u) and passable(r) and passable(l) 
+             map.data[x, y, level] = 76 
+           elsif !passable(r) and passable(d) and passable(u) and passable(l) 
+             map.data[x, y, level] = 72 
+           elsif !passable(l) and passable(d) and passable(u) and passable(r) 
+             map.data[x, y, level] = 64 
+           else 
+             map.data[x, y, level] = 48 
+           end 
+         else 
+           map.data[x, y, level] = 0 
+         end 
+       end 
+       end 
+     end 
+   end 
+   @map = map.dup 
+   map = nil 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? refresh 
+ #-------------------------------------------------------------------------- 
+ def refresh 
+   self.visible = false 
+   self.bitmap = Bitmap.new(@map.width * 6, @map.height * 6) 
+   bitmap = Bitmap.new(@map.width * 6, @map.height * 6) 
+   rect1 = Rect.new(6, 0, 6, 6) 
+   for y in 0...@map.height 
+     for x in 0...@map.width 
+       for level in [0] 
+         tile_id = @map.data[x, y, level] 
+         next if tile_id == 0 
+         id = tile_id / 48 - 1 
+         tile_id %= 48 
+         for g in 0..3 
+           h = 4 * tile_id + g 
+           y1 = INDEX[h] / 6 
+           x1 = INDEX[h] % 6 
+           rect2 = Rect.new(x1 * 3, y1 * 3, 3, 3) 
+           bitmap.blt(x * 6 + X[g] *  3, y * 6 + Y[g] * 3, @autotile, rect2) 
+         end 
+       end 
+     end 
+   end 
+   d_rect = Rect.new(0, 0, @map.width * 6, @map.height * 6) 
+   s_rect = Rect.new(0, 0, bitmap.width, bitmap.height) 
+   self.bitmap.stretch_blt(d_rect, bitmap, s_rect) 
+   self.viewport.ox = display_x 
+   self.viewport.oy = display_y 
+   bitmap.clear 
+   bitmap.dispose 
+ end 
+end 
+
+#============================================================================== 
+# ¦ Map_Event 
+#------------------------------------------------------------------------------ 
+#  draw the events and hero position 
+#============================================================================== 
+
+class Map_Event < Map_Passability 
+ #-------------------------------------------------------------------------- 
+ # ? initialize 
+ #-------------------------------------------------------------------------- 
+ def initialize(corner = 4) 
+   super(corner) 
+   @dots = [] 
+   @player = Sprite.new(self.viewport) 
+   @player.bitmap = RPG::Cache.picture("mm cursors") 
+   @player.src_rect = Rect.new(0, 0, 15, 15) 
+   @player.z = self.z + 3 
+   @events = {} 
+    
+   for key in $game_map.events.keys 
+     event = $game_map.events[key] 
+     next if event.list == nil 
+     for i in 0...event.list.size 
+       next if event.list[i].code != 108 
+       @events[key] = Sprite.new(self.viewport) 
+       @events[key].z = self.z + 2 
+       if event.list[i].parameters[0].include?("event") 
+         @events[key].bitmap = RPG::Cache.picture("event") 
+       elsif event.list[i].parameters[0].include?("enemy") 
+         @events[key].bitmap = RPG::Cache.picture("enemy") 
+       elsif event.list[i].parameters[0].include?("teleport") 
+         @events[key].bitmap = RPG::Cache.picture("teleport") 
+       elsif event.list[i].parameters[0].include?("chest") 
+         @events[key].bitmap = RPG::Cache.picture("chest") 
+       elsif event.list[i].parameters[0].include?("npc") 
+         @events[key].bitmap = RPG::Cache.picture("npc") 
+       elsif event.list[i].parameters[0].include?("savepoint") 
+         @events[key].bitmap = RPG::Cache.picture("savepoint") 
+       end 
+     end 
+   end 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? dispose 
+ #-------------------------------------------------------------------------- 
+ def dispose 
+   @player.dispose 
+   for event in @events.values 
+     event.dispose 
+   end 
+   super 
+ end 
+ #-------------------------------------------------------------------------- 
+ # ? update 
+ #-------------------------------------------------------------------------- 
+ def update 
+   super 
+   @player.x = $game_player.real_x * 3 / 64 - 5 
+   @player.y = $game_player.real_y * 3 / 64 - 4 
+   @player.src_rect.x = ($game_player.direction / 2 - 1) * 15 
+   for key in @events.keys 
+     event = @events[key] 
+     mapevent = $game_map.events[key] 
+     event.x = mapevent.real_x * 3 / 64 
+     event.y = mapevent.real_y * 3 / 64 
+   end 
+ end 
+end
