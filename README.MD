@@ -14,4 +14,4 @@ This project was developed in December of 2019 as a graduation project for Unica
 [You can watch a video about the project at the following link]
 (https://youtu.be/POtQlNvB9ng)
 
-(images/scenes.png)
+![Imagen del juego](images/scenes.png)
