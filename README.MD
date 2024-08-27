@@ -10,3 +10,8 @@ This project was developed in December of 2019 as a graduation project for Unica
 ### Instructions:
 1. Install `xp_rtpe.exe`.
 2. Execute `Game.exe`.
+
+[You can watch a video about the project at the following link]
+(https://youtu.be/POtQlNvB9ng)
+
+(images/scenes.png)
